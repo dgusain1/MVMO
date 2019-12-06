@@ -6,8 +6,8 @@
         function = test_functions.rosen
         optimizer = MVMO(iterations=5000, num_mutation=3, population_size=10)
         
-        def constraint(x):
-            return True if x[0]**2 + y**2 < 1 else False
+        def constraint(X):
+            return True if X[0]**2 + X[1]**2 < 1 else False
             
         bds = [(-1.5,1.5), (-0.5,2.5)]
         constr = {'ineq':"(X[0] - 1)**3 - X[1] + 1",
@@ -19,7 +19,7 @@
 import numpy as np, pandas as pd
 import time
 from tqdm import tqdm
-__version__ = "0.0.1"
+__version__ = "1.0.4"
 
 
 class MVMO():
