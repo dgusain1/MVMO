@@ -47,12 +47,12 @@ from MVMO import test_functions
 function = test_functions.rosen
 optimizer = MVMO(iterations=5000, num_mutation=3, population_size=10)
 
-def func_constr(x):
-	return True if x[0]**2 + x[1]**2 < 1 else False
+def func_constr(X):
+	return True if X[0]**2 + X[1]**2 < 1 else False
 	
 bds = [(-1.5,1.5), (-0.5,2.5)]
-constr = {'ineq':"(x[0] - 1)**3 - x[1] + 1",
-		  'eq':"x[0]+x[1]-2",
+constr = {'ineq':"(X[0] - 1)**3 - X[1] + 1",
+		  'eq':"X[0]+X[1]-2",
 		  'func':func_constr}
 res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
 
