@@ -1,6 +1,14 @@
 ## Mean Variance Mapping Optimization Algorithm
 MVMO is a Python package to perform heuristic optimization on constrained and unconsrained optimization problems whose convexity and/or linearity may not be fully known. It is based on swarm optimization principles, and uses a continuously updated mean and variance of best solutions from optimization process. Note: since this is a heuristic algorithm, it does not provide the optimal solution, but near optimal solution. This is however done in a very quick time compared to traditional optimization solvers.
 
+## Installation
+MVMO can be installed from PyPI using:
+
+```
+pip install MVMO
+```
+MVMO requires numpy and pandas to work.
+
 ## Usage
 
 ### Initialisation
