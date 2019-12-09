@@ -15,7 +15,7 @@ MVMO requires numpy and pandas to work.
 The MVMO optimizer can be called with arguments *iterations*, *num_mutation*, and *population_size*. This defines key parameters for MVMO.
 
 ### Defining objective function
-MVMO by default optimizes the objective function for minimum. For maximisation, the objective function will need to be modified. The MVMO package provides the following test function benchmarks from [Wikipedia](https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-11):
+MVMO by default optimizes the objective function for minimum. For maximisation, the objective function will need to be modified. Objective functions can be defined by the user as per requirement. This is shown in examples. The MVMO package provides the following test function benchmarks from [Wikipedia](https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-11):
 1. Rosenbrock
 2. Matyas
 3. Booth
