@@ -19,7 +19,7 @@
 import numpy as np, pandas as pd
 import time
 from tqdm import tqdm
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 
 class MVMO():
@@ -58,6 +58,7 @@ class MVMO():
         a = obj_fun(x0_denorm.tolist())
         #check if contraints are met
         sol_good = self.constraint_check(x0_denorm.tolist(), cons)
+        print(sol_good)
         if sol_good:            
             fitness = round(a, 4)
         else:
@@ -154,18 +155,21 @@ class MVMO():
         return [convergence[-1], res], convergence, solutions_d
     
     def constraint_check(self, solution, constraints):
-        X = solution
-        for key, value in constraints.items():
-            if key != 'func':
-                v = eval(value)
-                if key == 'ineq' and v >= 0:
-                    return False
-                elif key == 'eq' and v != 0:
-                    return False
+        if len(constraints) == 0:
+            return True
+        else:
+            X = solution
+            for key, value in constraints.items():
+                if key != 'func':
+                    v = eval(value)
+                    if key == 'ineq' and v >= 0:
+                        return False
+                    elif key == 'eq' and v != 0:
+                        return False
+                    else:
+                        return True
                 else:
-                    return True
-            else:
-                return value(X)
+                    return value(X)
 
     
     def optimize(self, obj_fun, bounds, constraints={}, x0=False):
