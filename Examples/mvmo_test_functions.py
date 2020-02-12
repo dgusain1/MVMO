@@ -20,7 +20,8 @@ constr = {'ineq':"(X[0] - 1)**3 - X[1] + 1",
 		  'eq':"X[0]+X[1]-2",
 		  'func':func_constr}
 res, conv, sol = optimizer.optimize(obj_fun=function_rosen, bounds=bds, constraints=constr)
+
 print(f'Rosenbrock optimum value = {res[0]} at X = {res[1]}')
 
-res, conv, sol = optimizer.optimize(obj_fun=function_easom, bounds=[(-100,100)*2])
-print(f'eASOM optimum value = {res[0]} at X = {res[1]}')
+#res, conv, sol = optimizer.optimize(obj_fun=function_easom, bounds=[(-100,100)*2])
+#print(f'eASOM optimum value = {res[0]} at X = {res[1]}')

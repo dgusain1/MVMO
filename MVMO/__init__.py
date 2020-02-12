@@ -25,6 +25,7 @@ __version__ = "1.0.5"
 class MVMO():
     
     def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True):
+        #num_mutation can be variable.
         self.iterations = iterations
         self.num_mutation = num_mutation
         self.population_size = population_size
@@ -58,7 +59,7 @@ class MVMO():
         a = obj_fun(x0_denorm.tolist())
         #check if contraints are met
         sol_good = self.constraint_check(x0_denorm.tolist(), cons)
-        print(sol_good)
+        
         if sol_good:            
             fitness = round(a, 4)
         else:
@@ -75,7 +76,9 @@ class MVMO():
         # TODO: How to define initial scaling factors???
         for i in tqdm(range(self.iterations)):
             # parent
-            x_parent = solutions_d.loc[:, min(solutions_d.columns)].tolist()
+            x_parent = solutions_d.loc[:, min(solutions_d.columns)].to_numpy()
+            #this is strategy 4 where you select randomly. 
+            #another strategy is fix one variable from vector. and mutate num_mutations-1 that are randomly selected from remaining.
             idxs = np.random.choice(
                 list(range(len(bounds))), self.num_mutation)
 
@@ -85,10 +88,16 @@ class MVMO():
 
                 xi_star = np.random.uniform(0, 1, 1)[0]
                 var = metrics_d['variance'][idx]
+                #scaling factor can be variable. This affects converegnce so play with it. 
+                # maybe increase quadratically or someway with number of iterations.
+                #when no improvement in solutions is observed, change it back to one for more explorstion\
+                
                 scaling_factor = 1 + 1/self.iterations * (20 - 1)
                 # print(min(var,1e-5))
                 s_old = -np.log(var) * scaling_factor
-
+                
+                #this 0.5 can also be adaptive
+                
                 if xi_star < 0.5:
                     s_new = s_old/(1 - x_bar)
                     hm = x_bar - x_bar/(0.5*s_new + 1)
