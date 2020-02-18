@@ -8,7 +8,7 @@ def readme():
 
 setup(
       name='MVMO',
-      version='1.0.6',
+      version='1.0.7',
       description='Python package for heuristic optimization',
       long_description=readme(),
       long_description_content_type="text/markdown",
@@ -22,5 +22,5 @@ setup(
               'Programming Language :: Python :: 3.6'],
       packages=['MVMO'],
       include_package_data=True,
-      install_requires=['numpy', 'pandas', 'tqdm']     
+      install_requires=['numpy', 'pandas', 'tqdm', 'pyDOE']     
       )
