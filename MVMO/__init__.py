@@ -20,18 +20,19 @@ import numpy as np, pandas as pd
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
-__version__ = "1.0.8"
+__version__ = "1.0.9"
 
 
 class MVMO():
     
-    def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True):
+    def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True, stop_iter_no_progresss = False, eps = 1e-4):
         #num_mutation can be variable.
         self.iterations = iterations
         self.num_mutation = num_mutation
         self.population_size = population_size
         self.logger = logger
-        
+        self.stop_if_no_progress = stop_iter_no_progresss
+        self.eps = eps
 
     def mvmo(self, obj_fun, bounds, cons, x_initial):
         
@@ -75,6 +76,11 @@ class MVMO():
         scaling_factor_hist = []
         # TODO: How to define initial scaling factors???
         for i in tqdm(range(self.iterations),disable=False):
+            #check for exit
+            if self.stop_if_no_progress and i > 500 and np.var(convergence[-500:]) < self.eps:
+                print(f"Exiting at iteration {i} because optimizer couldn't improve solutions any longer.")
+                break
+            
             # parent
             solutions_d.sort()
             x_parent = np.asarray(list(solutions_d[0][1]))
@@ -167,7 +173,7 @@ class MVMO():
         solutions_d.sort()
         res = min_b + \
             np.asarray(list(solutions_d[0][1])) * diff
-        
+        res = [round(x,5) for x in res]
         final_of = obj_fun(res)
         return [final_of, res], convergence, pd.DataFrame.from_dict(dict(solutions_d),orient='index'), {'metrics':metrics_d, 'scaling_factors':scaling_factor_hist}
     
