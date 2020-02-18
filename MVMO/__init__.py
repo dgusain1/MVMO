@@ -20,7 +20,7 @@ import numpy as np, pandas as pd
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 
 class MVMO():
