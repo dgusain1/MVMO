@@ -72,7 +72,7 @@ class MVMO():
         solutions_d.append((fitness,tuple(x0.tolist())))
         # initial metric is set to 0.5 for mean
 
-       scaling_factor_hist = []
+        scaling_factor_hist = []
         # TODO: How to define initial scaling factors???
         for i in tqdm(range(self.iterations),disable=False):
             # parent
