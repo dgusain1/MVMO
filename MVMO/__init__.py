@@ -22,7 +22,7 @@ from tqdm import tqdm
 from pyDOE import lhs
 __version__ = "1.0.9"
 
-
+this is crazy af 
 class MVMO():
     
     def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True, stop_iter_no_progresss = False, eps = 1e-4):
