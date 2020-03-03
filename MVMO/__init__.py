@@ -1,4 +1,5 @@
 """ Heuristic Optimization Algorithm developed in Python by Digvijay Gusain.
+    This version of MVMO creates a surrogate model of the problem function to accelerate the optimization process.
     Usage: (Optimizing the Rosenbrock function constrained with a cubic and a line [Wikipedia])
     
         from MVMO import MVMO
@@ -20,9 +21,9 @@ import numpy as np, pandas as pd
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
-__version__ = "1.0.9"
+__version__ = "2.0.0"
 
-this is crazy af 
+
 class MVMO():
     
     def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True, stop_iter_no_progresss = False, eps = 1e-4):
