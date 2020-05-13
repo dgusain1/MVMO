@@ -84,7 +84,7 @@ class MVMO():
             # parent
             solutions_d.sort()
             x_parent = np.asarray(list(solutions_d[0][1]))
-            num_mut = D if i < self.population_size+10 else self.num_mutation
+            num_mut = D if i < self.population_size+10 else min(D, self.num_mutation)
             idxs = np.random.choice(
                 list(range(D)), num_mut, replace=False)
             rand_mean = lhs(1,1)[0][0]
