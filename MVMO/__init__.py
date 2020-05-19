@@ -74,7 +74,6 @@ class MVMO():
         # initial metric is set to 0.5 for mean
 
         scaling_factor_hist = []
-        # TODO: How to define initial scaling factors???
         for i in tqdm(range(self.iterations),disable=False):
             #check for exit
             if self.stop_if_no_progress and i > 500 and np.var(convergence[-500:]) < self.eps:
@@ -85,6 +84,9 @@ class MVMO():
             solutions_d.sort()
             x_parent = np.asarray(list(solutions_d[0][1]))
             num_mut = D if i < self.population_size+10 else min(D, self.num_mutation)
+            if i > 0.5*self.iterations and np.var(convergence[-500:]) < 1e-5 and self.speedup:
+                num_mut = np.random.randint(2,num_mut)  #<--- new speedup
+
             idxs = np.random.choice(
                 list(range(D)), num_mut, replace=False)
             rand_mean = lhs(1,1)[0][0]
@@ -103,10 +105,10 @@ class MVMO():
                 #scaling factor can be variable. This affects converegnce so play with it. 
                 # maybe increase quadratically or someway with number of iterations.
                 #when no improvement in solutions is observed, change it back to one for more explorstion\
-                scaling_factor = 1 + (i+1) 
+                scaling_factor = 1 + (i**2) #<--- new scaling factor
                 
                 if i > 500 and np.var(convergence[-500:]) < 1e-5:
-                    scaling_factor = 2
+                    scaling_factor = 1 # <--- new scaling. previously was 2.
                 
                 s_old = -np.log(var) * scaling_factor
                 
@@ -138,7 +140,8 @@ class MVMO():
             if sol_good:                
                 fitness = round(a, 4)
             else:
-                fitness = 1e10 #penalty for constraint violation
+		solutions_d.sort()		
+                fitness = 10*solutions_d[0][-1] #<--- new penalty for constraint violation
             
             
             if len(solutions_d) < self.population_size+1:
