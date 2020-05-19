@@ -9,8 +9,8 @@ import numpy as np, pandas as pd, pandapower as pp, pandapower.networks as pn
 from MVMO import MVMO
 
 net = pn.case9()
-pp.runopp(net)
-cost_pp = -net.res_cost
+pp.runopp(net, init='pf')
+cost_pp = net.res_cost
 cost = net.poly_cost.iloc[:,[2,3,4]]
 
 def function(x):
@@ -48,7 +48,7 @@ optimizer = MVMO(iterations=100, num_mutation=3, population_size=10)
     
 bds = list(zip(net.gen.min_p_mw.tolist(), net.gen.max_p_mw.tolist()))
 constr = {'func':constr}
-res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
+res, conv, sol, extras = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
 #MVMO.plot(conv)
     
 #check pandapower solution to MVMO solution

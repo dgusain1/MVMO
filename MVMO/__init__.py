@@ -25,7 +25,7 @@ __version__ = "1.0.9"
 
 class MVMO():
     
-    def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True, stop_iter_no_progresss = False, eps = 1e-4):
+    def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True, stop_iter_no_progresss = False, eps = 1e-4, speedup=True):
         #num_mutation can be variable.
         self.iterations = iterations
         self.num_mutation = num_mutation
@@ -33,6 +33,7 @@ class MVMO():
         self.logger = logger
         self.stop_if_no_progress = stop_iter_no_progresss
         self.eps = eps
+        self.speedup = speedup
 
     def mvmo(self, obj_fun, bounds, cons, x_initial):
         
@@ -140,8 +141,8 @@ class MVMO():
             if sol_good:                
                 fitness = round(a, 4)
             else:
-		solutions_d.sort()		
-                fitness = 10*solutions_d[0][-1] #<--- new penalty for constraint violation
+                solutions_d.sort()		
+                fitness = 1e10 # penalty for constraint violation
             
             
             if len(solutions_d) < self.population_size+1:
