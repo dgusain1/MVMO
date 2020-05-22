@@ -43,7 +43,7 @@ class MVMO():
 
         # problem dimension
         D = len(bounds)
-        assert D>=self.num_mut, "number of mutations >= problem dimension. Optimization cannot proceed."
+        assert D>=self.num_mutation, "number of mutations >= problem dimension. Optimization cannot proceed."
 
         # create storage df
         solutions_d = []
