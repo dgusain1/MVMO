@@ -8,7 +8,7 @@ def readme():
 
 setup(
       name='MVMO',
-      version='1.0.12',
+      version='1.0.13',
       description='Python package for heuristic optimization',
       long_description=readme(),
       long_description_content_type="text/markdown",

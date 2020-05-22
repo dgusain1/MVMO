@@ -54,7 +54,7 @@ bds = [(-1.5,1.5), (-0.5,2.5)]
 constr = {'ineq':"(X[0] - 1)**3 - X[1] + 1",
 		  'eq':"X[0]+X[1]-2",
 		  'func':func_constr}
-res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
+res, conv, sol, extras = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
 
 MVMO.plot(conv)
 ```

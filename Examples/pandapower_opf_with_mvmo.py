@@ -44,7 +44,7 @@ def constr(x):
     a = np.array([react_power(), voltage(), line_loading()])
     return True if a.all() else False
 
-optimizer = MVMO(iterations=100, num_mutation=3, population_size=10)
+optimizer = MVMO(iterations=200, num_mutation=2, population_size=5)
     
 bds = list(zip(net.gen.min_p_mw.tolist(), net.gen.max_p_mw.tolist()))
 constr = {'func':constr}
