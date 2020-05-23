@@ -20,7 +20,7 @@ import numpy as np, pandas as pd
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
-__version__ = "1.0.9"
+__version__ = "1.0.16"
 
 
 class MVMO():
@@ -134,6 +134,9 @@ class MVMO():
             x_denorm = min_b + x_parent * diff
              
             tmp=x_denorm.tolist()
+            
+            #TODO: evaluate function on surrogate
+            
             
             a = obj_fun(tmp)
             
