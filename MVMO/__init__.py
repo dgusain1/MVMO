@@ -16,7 +16,7 @@
                   'func':constraint}
         res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
         MVMO.plot(conv)
-        this is new one
+        This tries to do surrogate with regressors. Doesnt work. Slower than original.
     """
 import numpy as np, pandas as pd, random
 import time, sys
