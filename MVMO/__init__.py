@@ -13,14 +13,14 @@
         constr = {'ineq':"(X[0] - 1)**3 - X[1] + 1",
                   'eq':"X[0]+X[1]-2",
                   'func':constraint}
-        res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
+        res, conv, sol, extras = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
         MVMO.plot(conv)
     """
 import numpy as np, pandas as pd
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
-__version__ = "1.0.9"
+__version__ = "1.0.16"
 
 
 class MVMO():

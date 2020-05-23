@@ -45,7 +45,7 @@ The following example shows minimization of constrained [Rosenbrock](https://en.
 from MVMO import MVMO
 from MVMO import test_functions
 function = test_functions.rosen
-optimizer = MVMO(iterations=5000, num_mutation=3, population_size=10)
+optimizer = MVMO(iterations=5000, num_mutation=1, population_size=10)
 
 def func_constr(X):
 	return True if X[0]**2 + X[1]**2 < 1 else False
