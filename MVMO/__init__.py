@@ -87,7 +87,7 @@ class MVMO():
             x_parent = np.asarray(list(solutions_d[0][1]))
             num_mut = D if i < self.population_size+10 else min(D, self.num_mutation)
             if i > 0.5*self.iterations and np.var(convergence[-500:]) < 1e-5 and self.speedup:
-                num_mut = np.random.randint(1,num_mut)  #<--- new speedup
+                num_mut = np.random.randint(0, num_mut)  #<--- new speedup
 
             idxs = np.random.choice(
                 list(range(D)), num_mut, replace=False)
