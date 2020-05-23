@@ -15,17 +15,22 @@
                   'func':constraint}
         res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
         MVMO.plot(conv)
+        this is new one
     """
-import numpy as np, pandas as pd
+import numpy as np, pandas as pd, random
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
 __version__ = "1.0.16"
 
 
 class MVMO():
     
-    def __init__(self, iterations=1000, num_mutation=1, population_size=5, logger=True, stop_iter_no_progresss = False, eps = 1e-4, speedup=True):
+    def __init__(self, iterations=1000, num_mutation=1, population_size=5, 
+                 logger=True, stop_iter_no_progresss = False, eps = 1e-4, 
+                 speedup=True, use_surrogate=False):
         #num_mutation can be variable.
         self.iterations = iterations
         self.num_mutation = num_mutation
@@ -34,8 +39,24 @@ class MVMO():
         self.stop_if_no_progress = stop_iter_no_progresss
         self.eps = eps
         self.speedup = speedup
-
+        self.use_surrogate = use_surrogate
+    
+    def evaluate_on_surrogate(self, x_test, solutions_d):
+        sol = pd.DataFrame.from_dict(dict(solutions_d),orient='index')
+        X = sol.values
+        y = sol.index.values
+        regressor = LinearRegression()  
+        regressor.fit(X, y)
+        y_pred = regressor.predict(np.asarray([x_test]))
+        if y_pred <= max(y):
+            return True
+        else:
+            return False
+        
+    
     def mvmo(self, obj_fun, bounds, cons, x_initial):
+        if self.use_surrogate:
+            regressor = LinearRegression() 
         
         convergence = []
         min_b, max_b = np.asarray(bounds).T
@@ -74,13 +95,27 @@ class MVMO():
     
         solutions_d.append((fitness,tuple(x0.tolist())))
         # initial metric is set to 0.5 for mean
-
+        
+        re_fit_regressor=False
+        count_update_regressor = 0
+        count_regress_fun_call = 0
+        count_regress_fun_call_rejected = 0
+        
         scaling_factor_hist = []
         for i in tqdm(range(self.iterations),disable=False):
             #check for exit
             if self.stop_if_no_progress and i > 500 and np.var(convergence[-500:]) < self.eps:
                 print(f"Exiting at iteration {i} because optimizer couldn't improve solutions any longer.")
                 break
+            
+            
+            if self.use_surrogate and re_fit_regressor:   
+                sol = pd.DataFrame.from_dict(dict(solutions_d),orient='index')
+                X_surr = sol.values
+                y_surr = sol.index.values
+                regressor.fit(X_surr, y_surr)
+                count_update_regressor += 1
+                
             
             # parent
             solutions_d.sort()
@@ -131,13 +166,20 @@ class MVMO():
                 x_parent[idx] = xi_new
             
             scaling_factor_hist.append(scaling_factor)
+
+            #TODO: evaluate function on surrogate
+            if self.use_surrogate:
+                if i > self.population_size:
+                    y_pred_surr = regressor.predict(np.asarray([x_parent.tolist()]))
+                    count_regress_fun_call += 1
+                    if y_pred_surr >= max(y_surr):
+                        count_regress_fun_call_rejected += 1
+                        continue
+
             x_denorm = min_b + x_parent * diff
              
             tmp=x_denorm.tolist()
-            
-            #TODO: evaluate function on surrogate
-            
-            
+                        
             a = obj_fun(tmp)
             
             sol_good = self.constraint_check(x_denorm, cons)
@@ -150,6 +192,7 @@ class MVMO():
             
             
             if len(solutions_d) < self.population_size+1:
+                re_fit_regressor = True
                 solutions_d.append((fitness,tuple(x_parent.tolist())))
                 solutions_d.sort()
                 convergence.append(solutions_d[0][0])
@@ -161,6 +204,7 @@ class MVMO():
                     np.mean(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
                 
             else:
+                re_fit_regressor = False
                 solutions_d.sort()
                 max_value=solutions_d[-1][0]
                 if fitness < max_value:
@@ -183,6 +227,9 @@ class MVMO():
             np.asarray(list(solutions_d[0][1])) * diff
         res = [round(x,5) for x in res]
         final_of = obj_fun(res)
+        print(f'''count_update_regressor = {count_update_regressor},\n
+        count_regress_fun_call = {count_regress_fun_call},\n
+        count_regress_fun_call_rejected = {count_regress_fun_call_rejected},\n''')
         return [final_of, res], convergence, pd.DataFrame.from_dict(dict(solutions_d),orient='index'), {'metrics':metrics_d, 'scaling_factors':scaling_factor_hist}
     
     def constraint_check(self, solution, constraints):
