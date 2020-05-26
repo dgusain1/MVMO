@@ -16,19 +16,16 @@
                   'func':constraint}
         res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
         MVMO.plot(conv)
-        This tries to do surrogate with regressors. Doesnt work. Slower than original.
+        This tries to do surrogate with regressors.
     """
 import numpy as np, pandas as pd, random
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
-<<<<<<< HEAD
+
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 __version__ = "1.0.16"
-=======
-__version__ = "2.0.0"
->>>>>>> 1b10683950aba51f70fcfac1131197c3350b5bf7
 
 
 class MVMO():
