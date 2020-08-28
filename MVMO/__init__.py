@@ -16,14 +16,16 @@
                   'func':constraint}
         res, conv, sol = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
         MVMO.plot(conv)
-        This tries to do surrogate with regressors.
+        
+        Tip: num_mutation should be approximately 10% of Dimension and population_size ~ 10*num_mutation
     """
 import numpy as np, pandas as pd, random
 import time, sys
 from tqdm import tqdm
 from pyDOE import lhs
+import random
 
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, SGDRegressor
 from sklearn.model_selection import train_test_split
 __version__ = "1.0.16"
 
@@ -32,7 +34,7 @@ class MVMO():
     
     def __init__(self, iterations=1000, num_mutation=1, population_size=5, 
                  logger=True, stop_iter_no_progresss = False, eps = 1e-4, 
-                 speedup=True, use_surrogate=False):
+                 speedup=False, use_surrogate=False):
         #num_mutation can be variable.
         self.iterations = iterations
         self.num_mutation = num_mutation
@@ -43,22 +45,9 @@ class MVMO():
         self.speedup = speedup
         self.use_surrogate = use_surrogate
     
-    def evaluate_on_surrogate(self, x_test, solutions_d):
-        sol = pd.DataFrame.from_dict(dict(solutions_d),orient='index')
-        X = sol.values
-        y = sol.index.values
-        regressor = LinearRegression()  
-        regressor.fit(X, y)
-        y_pred = regressor.predict(np.asarray([x_test]))
-        if y_pred <= max(y):
-            return True
-        else:
-            return False
-        
-    
-    def mvmo(self, obj_fun, bounds, cons, x_initial):
+    def mvmo(self, obj_fun, bounds, cons, x_initial, binary=[], integer=[]):
         if self.use_surrogate:
-            regressor = LinearRegression() 
+            regressor = SGDRegressor(shuffle=False, learning_rate='adaptive', warm_start=True)
         
         convergence = []
         min_b, max_b = np.asarray(bounds).T
@@ -71,66 +60,82 @@ class MVMO():
         # create storage df
         solutions_d = []
         metrics_d = {}
-
+        
         if x_initial:
-            x0 = (np.asarray(x_initial) - min_b) / diff
-            
+            x0 = (np.asarray(x_initial) - min_b) / diff            
         else:
             # generate initial random solution
             x0 = lhs(1,D).T[0] #np.random.uniform(size=D)
         
-        # denormalise solution
-        x0_denorm = min_b + x0 * diff
-        # evaluate initial fitness
-        a = obj_fun(x0_denorm.tolist())
-        #check if contraints are met
-        sol_good = self.constraint_check(x0_denorm.tolist(), cons)
+        #initial population
+        x0 = lhs(self.population_size,D).T
+        for item in x0:
+            if binary:
+                item[binary] = np.round(item[binary])
+            if integer:
+                full_x = min_b + item * diff
+                full_x[integer] = np.round(full_x[integer])
+                item = (np.asarray(full_x) - min_b) / diff
         
-        if sol_good:            
-            fitness = round(a, 4)
-        else:
-            fitness = 1e10 #penalty for constraint violation
+            # denormalise solution
+            x0_denorm = min_b + item * diff
             
-        convergence.append(fitness)
-    
+            # evaluate initial fitness
+            a = obj_fun(x0_denorm.tolist())
+            #check if contraints are met
+            sol_good = self.constraint_check(x0_denorm.tolist(), cons)
+            
+            if sol_good:            
+                fitness = round(a, 4)
+            else:
+                fitness = 1e10 #penalty for constraint violation
+                
+            convergence.append(fitness)
             # fill the fitness dataframe with fitness value, solution vector, mean, shape, and d-factor
-    
-        solutions_d.append((fitness,tuple(x0.tolist())))
-        # initial metric is set to 0.5 for mean
         
-        re_fit_regressor=False
+            solutions_d.append((fitness,tuple(item.tolist())))
+        
+        worst_fitness=solutions_d[-1][0]
+        
+        # initial metric is set to 0.5 for mean
+        regressor_not_fitted = True
         count_update_regressor = 0
         count_regress_fun_call = 0
-        count_regress_fun_call_rejected = 0
-        
+        count_regress_fun_call_rejected = 0   
         scaling_factor_hist = []
-        for i in tqdm(range(self.iterations),disable=False):
+        print_exit = False
+        
+        for i in tqdm(range(self.iterations),disable=not self.logger):
             #check for exit
-            if self.stop_if_no_progress and i > 500 and np.var(convergence[-500:]) < self.eps:
-                print(f"Exiting at iteration {i} because optimizer couldn't improve solutions any longer.")
-                break
+            if self.stop_if_no_progress and i/self.iterations>0.5 and np.var(convergence[-100:]) < self.eps:
+                if not print_exit:
+                    print(f"Exiting at iteration {i} because optimizer couldn't improve solutions any longer.")
+                    print_exit=True
+                continue
             
-            
-            if self.use_surrogate and re_fit_regressor:   
-                sol = pd.DataFrame.from_dict(dict(solutions_d),orient='index')
-                X_surr = sol.values
-                y_surr = sol.index.values
+            ######new regressor
+            if self.use_surrogate and regressor_not_fitted and i > self.iterations/5 :
+                solreg = pd.DataFrame.from_dict(dict(solutions_d),orient='index')
+                X_surr = solreg.values
+                y_surr = solreg.index.values
                 regressor.fit(X_surr, y_surr)
+                regressor_not_fitted = False
                 count_update_regressor += 1
-                
             
             # parent
             solutions_d.sort()
             x_parent = np.asarray(list(solutions_d[0][1]))
-            num_mut = D if i < self.population_size+10 else min(D, self.num_mutation)
-            if i > 0.5*self.iterations and np.var(convergence[-500:]) < 1e-5 and self.speedup:
-                num_mut = np.random.randint(1,num_mut)  #<--- new speedup
-
+            num_mut = D if i < self.population_size else min(D, self.num_mutation)
+            
+            if i > self.iterations/3 and np.var(convergence[-500:]) < self.eps and self.speedup and bool(random.getrandbits(1)):
+                num_mut = np.random.randint(1, num_mut)  #<--- new speedup
+            
+#            num_mut = int(np.clip(np.ceil(D * ((i+1)/self.iterations)),0,D))
             idxs = np.random.choice(
                 list(range(D)), num_mut, replace=False)
+            
             rand_mean = lhs(1,1)[0][0]
-            for idx in idxs:
-                
+            for idx in idxs:                    
                 # mean
                 if len(solutions_d)>self.population_size+1:
                     x_bar = metrics_d['mean'][idx]
@@ -138,17 +143,17 @@ class MVMO():
                 else:
                     x_bar, var = rand_mean, 0.5
                     
-                
-                xi_star = lhs(1,1)[0][0]
+                xi_star = np.clip(np.random.normal(0.5, 0.5, 1)[0], 0, 1)#lhs(1,1)[0][0]
                 
                 #scaling factor can be variable. This affects converegnce so play with it. 
                 # maybe increase quadratically or someway with number of iterations.
                 #when no improvement in solutions is observed, change it back to one for more explorstion\
-                scaling_factor = 1 + (i**2) #<--- new scaling factor
+#                scaling_factor = 1 + (i/self.iterations)*(19)
+                scaling_factor = 1 + (i**2.4) #<--- new scaling factor
                 
-                if i > 500 and np.var(convergence[-500:]) < 1e-5:
-                    scaling_factor = 1 # <--- new scaling. previously was 2.
-                
+                if i > 500 and np.var(convergence[-50:]) < self.eps and bool(random.getrandbits(1)):
+                    scaling_factor = 1. # <--- new scaling. previously was 2.
+                                    
                 s_old = -np.log(var) * scaling_factor
                 
                 #this 0.5 can also be adaptive
@@ -168,18 +173,26 @@ class MVMO():
                 x_parent[idx] = xi_new
             
             scaling_factor_hist.append(scaling_factor)
+                
+            if binary:
+                x_parent[binary] = np.round(x_parent[binary])
+            
+            if integer:
+                full_x = min_b + x_parent * diff
+                full_x[integer] = np.round(full_x[integer])
+                x_parent = (np.asarray(full_x) - min_b) / diff
 
-            #TODO: evaluate function on surrogate
-            if self.use_surrogate:
-                if i > self.population_size:
-                    y_pred_surr = regressor.predict(np.asarray([x_parent.tolist()]))
-                    count_regress_fun_call += 1
-                    if y_pred_surr >= max(y_surr):
+            #new regress func
+            if self.use_surrogate and i > self.iterations/5 and xi_star < 0.5:
+                y_pred_surr = regressor.predict(np.asarray([x_parent.tolist()]))
+                count_regress_fun_call += 1
+                solutions_d.sort()
+                if y_pred_surr >= solutions_d[-1][0]:
                         count_regress_fun_call_rejected += 1
                         continue
-
+            
             x_denorm = min_b + x_parent * diff
-             
+            
             tmp=x_denorm.tolist()
                         
             a = obj_fun(tmp)
@@ -189,12 +202,9 @@ class MVMO():
             if sol_good:                
                 fitness = round(a, 4)
             else:
-                solutions_d.sort()		
                 fitness = 1e10 # penalty for constraint violation
             
-            
             if len(solutions_d) < self.population_size+1:
-                re_fit_regressor = True
                 solutions_d.append((fitness,tuple(x_parent.tolist())))
                 solutions_d.sort()
                 convergence.append(solutions_d[0][0])
@@ -206,10 +216,8 @@ class MVMO():
                     np.mean(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
                 
             else:
-                re_fit_regressor = False
-                solutions_d.sort()
-                max_value=solutions_d[-1][0]
-                if fitness < max_value:
+#                solutions_d.sort()
+                if fitness < worst_fitness:
                     solutions_d.append((fitness,tuple(x_parent.tolist())))
                     solutions_d.sort()
                     solutions_d.pop(-1)
@@ -220,6 +228,11 @@ class MVMO():
                     np.var(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
                     metrics_d['mean'] = [
                         np.mean(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
+                    if self.use_surrogate:
+                        X_surr = np.reshape(x_parent, (-1,len(x_parent)))
+                        y_surr = [a]
+                        regressor.partial_fit(X_surr, y_surr)
+                    worst_fitness=solutions_d[-1][0]
                 else:
                     convergence.append(convergence[-1])
             
@@ -227,12 +240,17 @@ class MVMO():
         solutions_d.sort()
         res = min_b + \
             np.asarray(list(solutions_d[0][1])) * diff
-        res = [round(x,5) for x in res]
+        res = [round(x,7) for x in res]
         final_of = obj_fun(res)
-        print(f'''count_update_regressor = {count_update_regressor},\n
-        count_regress_fun_call = {count_regress_fun_call},\n
-        count_regress_fun_call_rejected = {count_regress_fun_call_rejected},\n''')
-        return [final_of, res], convergence, pd.DataFrame.from_dict(dict(solutions_d),orient='index'), {'metrics':metrics_d, 'scaling_factors':scaling_factor_hist}
+        res_dict_final = {
+                'objective': final_of,
+                'x': res,
+                'convergence': convergence,
+                'register': pd.DataFrame.from_dict(dict(solutions_d),orient='index'),
+                'metrics': metrics_d,
+                'scaling_factors': scaling_factor_hist
+                }
+        return res_dict_final#[final_of, res], convergence, pd.DataFrame.from_dict(dict(solutions_d),orient='index'), {'metrics':metrics_d, 'scaling_factors':scaling_factor_hist}
     
     def constraint_check(self, solution, constraints):
         if len(constraints) == 0:
@@ -252,21 +270,22 @@ class MVMO():
                     return value(X)
 
     
-    def optimize(self, obj_fun, bounds, constraints={}, x0=False):
+    def optimize(self, obj_fun, bounds, constraints={}, x0=False, binary=[], integer=[]):
         t1 = time.time()
-        self.res, self.conv, self.sol, self.extras = self.mvmo(
-            obj_fun=obj_fun, bounds=bounds, cons=constraints, x_initial=x0)
+#        self.res, self.conv, self.sol, self.extras = self.mvmo(
+#            obj_fun=obj_fun, bounds=bounds, cons=constraints, x_initial=x0, binary=binary, integer=integer)
+        self.res = self.mvmo(obj_fun=obj_fun, bounds=bounds, cons=constraints, 
+                             x_initial=x0, binary=binary, integer=integer)
         t2 = time.time()
         if self.logger:
-            sep = '*' * 50
+            sep = '*' * len(list(f"Optimal Solution found in {round(t2-t1, 2)}s"))
             print("\n")
             print(sep)
             print(f"Optimal Solution found in {round(t2-t1, 2)}s")
             print(sep)
-            print(f"\nFinal Objective Function Value: {self.res[0]}.")
-            print(f"Optimal Objective Function Value at: {self.res[1]}.")
+            print(f"\nFinal Objective Function Value: {self.res['objective']}.")
 
-        return self.res, self.conv, self.sol, self.extras
+        return self.res
 
     def plot(conv):
         import matplotlib.pyplot as plt
