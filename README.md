@@ -31,13 +31,19 @@ h(x) = 0    #equality constraint
 ```
 Complex constraints can also be defined as python functions. An example of how to use the MVMO package for constrained optimization is shown later. It uses all three constraint defintions. 
 
-### Optimization
-The `optimize()` method can be called on the `optimizer` to perform optimization. It returns the following upon completion of optimization:
-1. `res`: Provides best objective function value, and where it was obtained. [obf_value, x]
-2. `conv`: Provides the list of objective function values over optimization process. This can beused to plot convergence graph.
-3. `sol`: provides the internal mean and variance of stored solutions that was used for optimization. The size of this matrix is **x** X **num_population**.
+### Binary and Integer variables
+MVMO also provides the ablity to define binary and integer variables in optimization decision easily. This can be done by specifying the index of the variables with `binary` or `integer` keyword in the `optimize` function. This is shown in the example later.
 
-The convergence graph can be plotted with `MVMO.plot(conv)`.
+### Optimization
+The `optimize()` method can be called on the `optimizer` to perform optimization. It returns a `res` dictioanry object upon the completion of optimization. This contains:
+1. `objective`: Provides best objective function value, and where it was obtained.
+2. `x`: The optimized decision vector
+3. `convergence`: Provides the list of objective function values over optimization process. This can beused to plot convergence graph.
+4. `register`: A pandas dataframe of the size of `population_size` which contains best saved objective function values and `X` vectors.
+5. `metrics`: Provides the internal mean and variance of stored solutions that was used for optimization.
+6. `scaling_factors`" provides a list of scaling factors used over the iterations.
+
+The convergence graph can be plotted with `MVMO.plot(res['convergence'])`.
 
 The following example shows minimization of constrained [Rosenbrock](https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-11) function:
 
@@ -50,12 +56,14 @@ optimizer = MVMO(iterations=5000, num_mutation=1, population_size=10)
 def func_constr(X):
 	return True if X[0]**2 + X[1]**2 < 1 else False
 	
-bds = [(-1.5,1.5), (-0.5,2.5)]
+bds = [(0,1.5), (1,3.5)]
 constr = {'ineq':"(X[0] - 1)**3 - X[1] + 1",
 		  'eq':"X[0]+X[1]-2",
 		  'func':func_constr}
-res, conv, sol, extras = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr)
+res = optimizer.optimize(obj_fun=function, bounds=bds, constraints=constr, binary=[0], integer=[1])
 
-MVMO.plot(conv)
+print(res['x')
+
+MVMO.plot(res['convergence'])
 ```
 
