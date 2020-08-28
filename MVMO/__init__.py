@@ -20,21 +20,18 @@
         Tip: num_mutation should be approximately 10% of Dimension and population_size ~ 10*num_mutation
     """
 import numpy as np, pandas as pd, random
-import time, sys
+import time
 from tqdm import tqdm
 from pyDOE import lhs
-import random
 
-from sklearn.linear_model import LinearRegression, SGDRegressor
-from sklearn.model_selection import train_test_split
-__version__ = "1.0.16"
+__version__ = "1.1.0"
 
 
 class MVMO():
     
     def __init__(self, iterations=1000, num_mutation=1, population_size=5, 
                  logger=True, stop_iter_no_progresss = False, eps = 1e-4, 
-                 speedup=False, use_surrogate=False):
+                 speedup=False):
         #num_mutation can be variable.
         self.iterations = iterations
         self.num_mutation = num_mutation
@@ -43,43 +40,24 @@ class MVMO():
         self.stop_if_no_progress = stop_iter_no_progresss
         self.eps = eps
         self.speedup = speedup
-        self.use_surrogate = use_surrogate
     
     def mvmo(self, obj_fun, bounds, cons, x_initial, binary=[], integer=[]):
-        if self.use_surrogate:
-            regressor = SGDRegressor(shuffle=False, learning_rate='adaptive', warm_start=True)
-        
+                
         convergence = []
         min_b, max_b = np.asarray(bounds).T
         diff = max_b - min_b#np.fabs(min_b - max_b)
 
         # problem dimension
         D = len(bounds)
-        assert D>=self.num_mutation, "number of mutations >= problem dimension. Optimization cannot proceed."
+        assert D>=self.num_mutation, "Number of mutations >= Problem dimension. Optimization cannot proceed."
 
         # create storage df
         solutions_d = []
         metrics_d = {}
         
         if x_initial:
-            x0 = (np.asarray(x_initial) - min_b) / diff            
-        else:
-            # generate initial random solution
-            x0 = lhs(1,D).T[0] #np.random.uniform(size=D)
-        
-        #initial population
-        x0 = lhs(self.population_size,D).T
-        for item in x0:
-            if binary:
-                item[binary] = np.round(item[binary])
-            if integer:
-                full_x = min_b + item * diff
-                full_x[integer] = np.round(full_x[integer])
-                item = (np.asarray(full_x) - min_b) / diff
-        
-            # denormalise solution
-            x0_denorm = min_b + item * diff
-            
+            x0 = (np.asarray(x_initial) - min_b) / diff  
+            x0_denorm = min_b + x0 * diff
             # evaluate initial fitness
             a = obj_fun(x0_denorm.tolist())
             #check if contraints are met
@@ -93,15 +71,39 @@ class MVMO():
             convergence.append(fitness)
             # fill the fitness dataframe with fitness value, solution vector, mean, shape, and d-factor
         
-            solutions_d.append((fitness,tuple(item.tolist())))
-        
+            solutions_d.append((fitness,tuple(x0.tolist())))
+        else:
+            #initial population
+            x0 = lhs(self.population_size,D).T
+            for item in x0:
+                if binary:
+                    item[binary] = np.round(item[binary])
+                if integer:
+                    full_x = min_b + item * diff
+                    full_x[integer] = np.round(full_x[integer])
+                    item = (np.asarray(full_x) - min_b) / diff
+            
+                # denormalise solution
+                x0_denorm = min_b + item * diff
+                
+                # evaluate initial fitness
+                a = obj_fun(x0_denorm.tolist())
+                #check if contraints are met
+                sol_good = self.constraint_check(x0_denorm.tolist(), cons)
+                
+                if sol_good:            
+                    fitness = round(a, 4)
+                else:
+                    fitness = 1e10 #penalty for constraint violation
+                    
+                convergence.append(fitness)
+                # fill the fitness dataframe with fitness value, solution vector, mean, shape, and d-factor
+            
+                solutions_d.append((fitness,tuple(item.tolist())))
+            
         worst_fitness=solutions_d[-1][0]
         
         # initial metric is set to 0.5 for mean
-        regressor_not_fitted = True
-        count_update_regressor = 0
-        count_regress_fun_call = 0
-        count_regress_fun_call_rejected = 0   
         scaling_factor_hist = []
         print_exit = False
         
@@ -113,15 +115,6 @@ class MVMO():
                     print_exit=True
                 continue
             
-            ######new regressor
-            if self.use_surrogate and regressor_not_fitted and i > self.iterations/5 :
-                solreg = pd.DataFrame.from_dict(dict(solutions_d),orient='index')
-                X_surr = solreg.values
-                y_surr = solreg.index.values
-                regressor.fit(X_surr, y_surr)
-                regressor_not_fitted = False
-                count_update_regressor += 1
-            
             # parent
             solutions_d.sort()
             x_parent = np.asarray(list(solutions_d[0][1]))
@@ -130,7 +123,6 @@ class MVMO():
             if i > self.iterations/3 and np.var(convergence[-500:]) < self.eps and self.speedup and bool(random.getrandbits(1)):
                 num_mut = np.random.randint(1, num_mut)  #<--- new speedup
             
-#            num_mut = int(np.clip(np.ceil(D * ((i+1)/self.iterations)),0,D))
             idxs = np.random.choice(
                 list(range(D)), num_mut, replace=False)
             
@@ -181,15 +173,6 @@ class MVMO():
                 full_x = min_b + x_parent * diff
                 full_x[integer] = np.round(full_x[integer])
                 x_parent = (np.asarray(full_x) - min_b) / diff
-
-            #new regress func
-            if self.use_surrogate and i > self.iterations/5 and xi_star < 0.5:
-                y_pred_surr = regressor.predict(np.asarray([x_parent.tolist()]))
-                count_regress_fun_call += 1
-                solutions_d.sort()
-                if y_pred_surr >= solutions_d[-1][0]:
-                        count_regress_fun_call_rejected += 1
-                        continue
             
             x_denorm = min_b + x_parent * diff
             
@@ -216,7 +199,6 @@ class MVMO():
                     np.mean(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
                 
             else:
-#                solutions_d.sort()
                 if fitness < worst_fitness:
                     solutions_d.append((fitness,tuple(x_parent.tolist())))
                     solutions_d.sort()
@@ -228,10 +210,7 @@ class MVMO():
                     np.var(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
                     metrics_d['mean'] = [
                         np.mean(sol_d_tmp.iloc[x, :]) for x in range(len(sol_d_tmp))]
-                    if self.use_surrogate:
-                        X_surr = np.reshape(x_parent, (-1,len(x_parent)))
-                        y_surr = [a]
-                        regressor.partial_fit(X_surr, y_surr)
+
                     worst_fitness=solutions_d[-1][0]
                 else:
                     convergence.append(convergence[-1])
@@ -242,6 +221,7 @@ class MVMO():
             np.asarray(list(solutions_d[0][1])) * diff
         res = [round(x,7) for x in res]
         final_of = obj_fun(res)
+        
         res_dict_final = {
                 'objective': final_of,
                 'x': res,
@@ -250,7 +230,7 @@ class MVMO():
                 'metrics': metrics_d,
                 'scaling_factors': scaling_factor_hist
                 }
-        return res_dict_final#[final_of, res], convergence, pd.DataFrame.from_dict(dict(solutions_d),orient='index'), {'metrics':metrics_d, 'scaling_factors':scaling_factor_hist}
+        return res_dict_final
     
     def constraint_check(self, solution, constraints):
         if len(constraints) == 0:
@@ -272,8 +252,6 @@ class MVMO():
     
     def optimize(self, obj_fun, bounds, constraints={}, x0=False, binary=[], integer=[]):
         t1 = time.time()
-#        self.res, self.conv, self.sol, self.extras = self.mvmo(
-#            obj_fun=obj_fun, bounds=bounds, cons=constraints, x_initial=x0, binary=binary, integer=integer)
         self.res = self.mvmo(obj_fun=obj_fun, bounds=bounds, cons=constraints, 
                              x_initial=x0, binary=binary, integer=integer)
         t2 = time.time()
@@ -289,7 +267,7 @@ class MVMO():
 
     def plot(conv):
         import matplotlib.pyplot as plt
-        plt.plot(conv, "C2", linewidth=1)
+        plt.plot(conv, "C2", linewidth=1, label='OF value')
         plt.ylabel("Objective Function Fitness")
         plt.xlabel("Iterations")
         plt.title("Convergence Plot")
