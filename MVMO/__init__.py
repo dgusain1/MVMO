@@ -23,12 +23,8 @@ import numpy as np, pandas as pd, random
 import time
 from tqdm import tqdm
 from pyDOE import lhs
-<<<<<<< HEAD
-__version__ = "1.0.16"
-=======
 
 __version__ = "1.1.0"
->>>>>>> binint
 
 
 class MVMO():
@@ -122,18 +118,12 @@ class MVMO():
             # parent
             solutions_d.sort()
             x_parent = np.asarray(list(solutions_d[0][1]))
-<<<<<<< HEAD
-            num_mut = D if i < self.population_size+10 else min(D, self.num_mutation)
-            if i > 0.5*self.iterations and np.var(convergence[-500:]) < 1e-5 and self.speedup:
-                num_mut = np.random.randint(0, num_mut)  #<--- new speedup
 
-=======
             num_mut = D if i < self.population_size else min(D, self.num_mutation)
             
             if i > self.iterations/3 and np.var(convergence[-500:]) < self.eps and self.speedup and bool(random.getrandbits(1)):
                 num_mut = np.random.randint(1, num_mut)  #<--- new speedup
             
->>>>>>> binint
             idxs = np.random.choice(
                 list(range(D)), num_mut, replace=False)
             
