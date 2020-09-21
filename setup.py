@@ -15,6 +15,7 @@ setup(
       url='https://github.com/dgusain1/MVMO',
       author='Digvijay Gusain',
       author_email='d.gusain@tudelft.nl',
+      python_requires='>=3.4',
       license='MIT',
       classifiers=[
               'License :: OSI Approved :: MIT License',
