@@ -1,0 +1,8 @@
+README.md
+setup.py
+MVMO/__init__.py
+MVMO.egg-info/PKG-INFO
+MVMO.egg-info/SOURCES.txt
+MVMO.egg-info/dependency_links.txt
+MVMO.egg-info/requires.txt
+MVMO.egg-info/top_level.txt
